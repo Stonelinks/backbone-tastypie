@@ -113,7 +113,7 @@
       url = url || this.collection && ( _.isFunction( this.collection.url ) ? this.collection.url() : this.collection.url );
 
       if ( url && this.has( 'id' ) ) {
-        url = addSlash( url ) + this.get( 'id' );
+        url = addSlash( url ) + this.get( 'id' ) + '/?format=json';
       }
     }
 
@@ -148,7 +148,7 @@
       var model = models && models.length && models[ 0 ];
       url = model && ( _.isFunction( model.urlRoot ) ? model.urlRoot() : model.urlRoot );
     }
-    url = url && addSlash( url );
+    url = url && addSlash( url ) + '?format=json';
 
     // Build a url to retrieve a set of models. This assume the last part of each model's idAttribute
     // (set to 'resource_uri') contains the model's id.
