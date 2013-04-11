@@ -9,17 +9,16 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-regarde');
   grunt.loadNpmTasks('grunt-exec');
 
-
   // Config
   // ------
   
-  var SRC = 'static/js/backbone-tastypie.js';
-  var DST = '../mujin/dev/mujinjsclient/mujincontroller/app/vendor/backbone-tastypie/backbone_tastypie/static/js/backbone-tastypie.js';
-
+  var SRC = 'backbone_tastypie/';
+  var DST = '../mujin/dev/mujinjsclient/mujincontroller/app/vendor/backbone-tastypie/';
+  
   grunt.initConfig({
     exec: {
       fixjsstyle: {
-        command: 'fixjsstyle -r ' + SRC,
+        command: 'fixjsstyle -r backbone_tastypie/static/js/backbone_tastypie.js',
         stdout: true
       },
       copy: {
@@ -32,13 +31,12 @@ module.exports = function(grunt) {
       }
     },
     regarde: {
-      app: {
-        files: SRC,
-        tasks: ['exec:fixjsstyle', 'copy']
+      js: {
+        files: SRC + '**/*',
+        tasks: ['exec:fixjsstyle', 'exec:copy']
       }
     }
   });
-
 
   // Tasks
   // -----
