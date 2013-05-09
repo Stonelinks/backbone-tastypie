@@ -104,21 +104,17 @@
   Backbone.Model.prototype.idAttribute = 'resource_uri';
 
   Backbone.Model.prototype.url = function() {
-    // Use the id if possible
-    var url = this.id;
+    var url;
+    
+    url = _.isFunction(this.urlRoot) ? this.urlRoot() : this.urlRoot;
+    url = url || this.collection && (_.isFunction(this.collection.url) ? this.collection.url() : this.collection.url);
 
-    // If there's no idAttribute, use the 'urlRoot'. Fallback to try to have the collection construct a url.
-    // Explicitly add the 'id' attribute if the model has one.
-    if (!url) {
-      url = _.isFunction(this.urlRoot) ? this.urlRoot() : this.urlRoot;
-      url = url || this.collection && (_.isFunction(this.collection.url) ? this.collection.url() : this.collection.url);
-
-      if (url && this.has('id')) {
-        url = addSlash(url) + this.get('id') + '/?format=json';
-      }
+    if (url && this.hasOwnProperty('id')) {
+      url = addSlash(url) + this.id + '/?format=json';
     }
-
-    url = url && addSlash(url);
+    else {
+      url = addSlash(url);
+    }
 
     return url || null;
   };

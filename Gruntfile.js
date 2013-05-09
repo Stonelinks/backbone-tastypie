@@ -41,6 +41,6 @@ module.exports = function(grunt) {
   // Tasks
   // -----
 
-  // handy watch to copy js to where i need it
   grunt.registerTask('watch', ['regarde']);
+  grunt.registerTask('default', ['exec:fixjsstyle', 'exec:copy']);
 };
