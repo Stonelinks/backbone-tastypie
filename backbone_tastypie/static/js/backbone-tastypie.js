@@ -101,7 +101,7 @@
     return Backbone.oldSync(method, model, options);
   };
 
-  Backbone.Model.prototype.idAttribute = 'resource_uri';
+  Backbone.Model.prototype.idAttribute = 'pk';
 
   Backbone.Model.prototype.url = function() {
     var url;
@@ -110,11 +110,9 @@
     url = url || this.collection && (_.isFunction(this.collection.url) ? this.collection.url() : this.collection.url);
 
     if (url && this.hasOwnProperty('id')) {
-      url = addSlash(url) + this.id + '/?format=json';
+      url = addSlash(url) + this.id;
     }
-    else {
-      url = addSlash(url);
-    }
+    url = addSlash(url);
 
     return url || null;
   };
@@ -145,7 +143,7 @@
       var model = models && models.length && models[0];
       url = model && (_.isFunction(model.urlRoot) ? model.urlRoot() : model.urlRoot);
     }
-    url = url && addSlash(url) + '?format=json';
+    url = url && addSlash(url);
 
     // Build a url to retrieve a set of models. This assume the last part of each model's idAttribute
     // (set to 'resource_uri') contains the model's id.
