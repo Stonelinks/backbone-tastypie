@@ -97,6 +97,29 @@
       dfd.request = Backbone.oldSync(method, model, options);
       return dfd;
     }
+    
+    //~ print error messages that come back from the API
+    var error = options.error;
+    if (_.isFunction(error)) {
+      options.error = function(xhr, textStatus, errorThrown) {
+        if (xhr.hasOwnProperty('responseText')) {
+          if (isJSON(xhr.responseText) && xhr.responseText != '') {
+            var _error = $.parseJSON(xhr.responseText);
+            if (_error.hasOwnProperty('error_message')) {
+              print('Error message: ' + _error.error_message);
+            }
+
+            if (_error.hasOwnProperty('traceback')) {
+              print(_error.traceback);
+            }
+          }
+        }
+        else {
+          print('Error message: ' + xhr.responseText);
+        }
+        error(xhr, textStatus, errorThrown);
+      }
+    }
 
     return Backbone.oldSync(method, model, options);
   };
