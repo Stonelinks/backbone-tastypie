@@ -9,21 +9,20 @@
  * Modifications to work with a highly customized version of Tastypie by Lucas Doyle 2013
  *
  */
-(function(undefined) {
-  'use strict';
-
-  // Backbone and underscore noConflict support. Save local reference to _ and Backbone objects.
-  var _, Backbone;
-
-  // CommonJS shim
-  if (typeof window === 'undefined') {
-    _ = require('underscore');
-    Backbone = require('backbone');
-  }
-  else {
-    _ = window._;
-    Backbone = window.Backbone;
-  }
+(function (root, factory) {
+    // https://github.com/umdjs/umd/blob/master/returnExports.js
+    if (typeof exports === 'object') {
+        // Node
+        module.exports = factory(require('backbone'), require('underscore'), require('URI'));
+    } else if (typeof define === 'function' && define.amd) {
+        // AMD. Register as an anonymous module.
+        define(['backbone', 'underscore', 'URI'], factory);
+    } else {
+        // Browser globals (root is window)
+        root.Backbone = factory(root.Backbone, root._, root.URI);
+    }
+}(this, function (Backbone, _, URI) {
+  "use strict";
 
   Backbone.Tastypie = {
     doGetOnEmptyPostResponse: true,
@@ -34,7 +33,7 @@
     },
     csrfToken: ''
   };
-
+  
   /**
    * Override Backbone's sync function, to do a GET upon receiving a HTTP CREATED.
    * This requires 2 requests to do a create, so you may want to use some other method in production.
@@ -120,6 +119,14 @@
         error(xhr, textStatus, errorThrown);
       }
     }
+    
+    if (options.hasOwnProperty('fields')) {
+      var requestURL = options.hasOwnProperty('url')? _.result(options, 'url') : _.result(model, 'url');
+      var newURL = URI(requestURL);
+      newURL.setQuery('fields', _.isArray(options.fields) ? options.fields.join(',') : options.fields);
+      options.url = newURL.toString();
+      print('setting url to ' + options.url);
+    }
 
     return Backbone.oldSync(method, model, options);
   };
@@ -184,4 +191,6 @@
   var addSlash = function(str) {
     return str + ((str.length > 0 && str.charAt(str.length - 1) === '/') ? '' : '/');
   };
-})();
+  
+  return Backbone;
+}));
