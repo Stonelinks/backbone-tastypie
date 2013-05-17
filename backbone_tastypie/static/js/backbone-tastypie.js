@@ -125,7 +125,6 @@
       var newURL = URI(requestURL);
       newURL.setQuery('fields', _.isArray(options.fields) ? options.fields.join(',') : options.fields);
       options.url = newURL.toString();
-      print('setting url to ' + options.url);
     }
 
     return Backbone.oldSync(method, model, options);
