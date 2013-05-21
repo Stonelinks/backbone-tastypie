@@ -63,15 +63,6 @@
     headers = _.extend(headers, options.headers);
     options.headers = headers;
 
-    //~ handle fields
-    if (options.hasOwnProperty('fields')) {
-      if (model.hasOwnProperty('_fields')) {
-        print('WARNING: overwriting fields in model ' + model.id + ': ' + model._fields.join(','))
-        print('so this is usually a bad thing, and might be because two requests with different field parameters are happening at the same time for this model or collection.')
-      }
-      model._fields = _.isArray(options.fields) ? options.fields : [options.fields];
-    }
-
     if ((method === 'create' && Backbone.Tastypie.doGetOnEmptyPostResponse) ||
       (method === 'update' && Backbone.Tastypie.doGetOnEmptyPutResponse)) {
       var dfd = new $.Deferred();
@@ -114,22 +105,6 @@
       return dfd;
     }
     
-    var complete = options.complete;
-    options.complete = function(xhr, textStatus, errorText) {
-      
-      //~ clear fields if they were being used
-      if (model.hasOwnProperty('_fields')) {
-        debug('delete fields ' + model._fields + ' for model ' + model.id)
-        delete model._fields
-        debug('model ' + model.id + ' fields are ' + model._fields)
-      }
-      
-      //~ call original complete function
-      if (_.isFunction(complete)) {
-        complete(xhr, textStatus, errorText)
-      }
-    }
-    
     //~ print error messages that come back from the API
     var error = options.error;
     options.error = function(xhr, textStatus, errorThrown) {
@@ -155,23 +130,97 @@
       }
     }
     
-    return Backbone.oldSync(method, model, options);
+    
+    //~ HERE BEGINS A MODIFIED COPY OF THE ORIGINAL BACKBONE SYNC FUNCTION
+    //~    write changes you make to it here:
+    //~      - added fields support to output of url function
+    //~      - changed patch requests from http method PATCH to PUT 
+    
+    // Map from CRUD to HTTP for our default `Backbone.sync` implementation.
+    var methodMap = {
+      'create': 'POST',
+      'update': 'PUT',
+      'patch':  'PUT',
+      'delete': 'DELETE',
+      'read':   'GET'
+    };
+
+    var type = methodMap[method];
+
+    // Default options, unless specified.
+    _.defaults(options || (options = {}), {
+      emulateHTTP: Backbone.emulateHTTP,
+      emulateJSON: Backbone.emulateJSON
+    });
+
+    // Default JSON-request options.
+    var params = {type: type, dataType: 'json'};
+
+    // Ensure that we have a URL.
+    var url = options.url
+    if (!url) {
+      params.url = _.result(model, 'url') || urlError();
+      url = params.url
+    }
+    
+    //~ add fields to url
+    if (options.hasOwnProperty('fields')) {
+      var fields = _.isArray(options.fields) ? options.fields : [options.fields];
+
+      //~ make sure pk is always in fields
+      if (_.indexOf(fields, 'pk') == -1) {
+        fields.push('pk');
+      }
+
+      params.url = URI(url).setQuery('fields', fields.join(',')).href();
+    }
+
+    // Ensure that we have the appropriate request data.
+    if (options.data == null && model && (method === 'create' || method === 'update' || method === 'patch')) {
+      params.contentType = 'application/json';
+      params.data = JSON.stringify(options.attrs || model.toJSON(options));
+    }
+
+    // For older servers, emulate JSON by encoding the request into an HTML-form.
+    if (options.emulateJSON) {
+      params.contentType = 'application/x-www-form-urlencoded';
+      params.data = params.data ? {model: params.data} : {};
+    }
+
+    // For older servers, emulate HTTP by mimicking the HTTP method with `_method`
+    // And an `X-HTTP-Method-Override` header.
+    if (options.emulateHTTP && (type === 'PUT' || type === 'DELETE' || type === 'PATCH')) {
+      params.type = 'POST';
+      if (options.emulateJSON) params.data._method = type;
+      var beforeSend = options.beforeSend;
+      options.beforeSend = function(xhr) {
+        xhr.setRequestHeader('X-HTTP-Method-Override', type);
+        if (beforeSend) return beforeSend.apply(this, arguments);
+      };
+    }
+
+    // Don't process data on a non-GET request.
+    if (params.type !== 'GET' && !options.emulateJSON) {
+      params.processData = false;
+    }
+
+    // If we're sending a `PATCH` request, and we're in an old Internet Explorer
+    // that still has ActiveX enabled by default, override jQuery to use that
+    // for XHR instead. Remove this line when jQuery supports `PATCH` on IE8.
+    if (params.type === 'PATCH' && window.ActiveXObject &&
+          !(window.external && window.external.msActiveXFilteringEnabled)) {
+      params.xhr = function() {
+        return new ActiveXObject("Microsoft.XMLHTTP");
+      };
+    }
+
+    // Make the request, allowing the user to override any Ajax options.
+    var xhr = options.xhr = Backbone.ajax(_.extend(params, options));
+    model.trigger('request', model, xhr, options);
+    return xhr;
   };
 
   Backbone.Model.prototype.idAttribute = 'pk';
-
-  //~ add fields to querystring of url
-  var addFields = function(url, fields) {
-
-    //~ make sure pk is always in fields
-    if (_.indexOf(fields, 'pk') == -1) {
-      fields.push('pk');
-    }
-
-    var ret = URI(url).setQuery('fields', fields.join(',')).href();
-    debug('fields added to url, here\'s the result: ' + ret);
-    return ret;
-  }
 
   Backbone.Model.prototype.url = function() {
     var url;
@@ -183,11 +232,6 @@
       url = addSlash(url) + this.id;
     }
     url = addSlash(url);
-    
-    //~ add any fields that need to be in the url
-    if (url && this.hasOwnProperty('_fields')) {
-      url = addFields(url, this._fields)
-    }
     
     return url || null;
   };
@@ -230,11 +274,6 @@
       url += 'set/' + ids.join(';') + '/';
     }
     
-    //~ add any fields that need to be in the url
-    if (url && this.hasOwnProperty('_fields')) {
-      url = addFields(url, this._fields)
-    }
-
     return url || null;
   };
 
