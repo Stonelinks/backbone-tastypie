@@ -24,6 +24,14 @@
 }(this, function (Backbone, _, URI) {
   "use strict";
 
+  //~ change this to true to enable debug messages
+  var DEBUG = true;
+  var debug = function(msg) {
+    if (DEBUG) {
+      print(msg)
+    }
+  }
+
   Backbone.Tastypie = {
     doGetOnEmptyPostResponse: true,
     doGetOnEmptyPutResponse: false,
@@ -54,6 +62,15 @@
     // Keep `headers` for a potential second request
     headers = _.extend(headers, options.headers);
     options.headers = headers;
+
+    //~ handle fields
+    if (options.hasOwnProperty('fields')) {
+      if (model.hasOwnProperty('_fields')) {
+        print('WARNING: overwriting fields in model ' + model.id + ': ' + model._fields.join(','))
+        print('so this is usually a bad thing, and might be because two requests with different field parameters are happening at the same time for this model or collection.')
+      }
+      model._fields = _.isArray(options.fields) ? options.fields : [options.fields];
+    }
 
     if ((method === 'create' && Backbone.Tastypie.doGetOnEmptyPostResponse) ||
       (method === 'update' && Backbone.Tastypie.doGetOnEmptyPutResponse)) {
@@ -97,52 +114,81 @@
       return dfd;
     }
     
+    var complete = options.complete;
+    options.complete = function(xhr, textStatus, errorText) {
+      
+      //~ clear fields if they were being used
+      if (model.hasOwnProperty('_fields')) {
+        debug('delete fields ' + model._fields + ' for model ' + model.id)
+        delete model._fields
+        debug('model ' + model.id + ' fields are ' + model._fields)
+      }
+      
+      //~ call original complete function
+      if (_.isFunction(complete)) {
+        complete(xhr, textStatus, errorText)
+      }
+    }
+    
     //~ print error messages that come back from the API
     var error = options.error;
-    if (_.isFunction(error)) {
-      options.error = function(xhr, textStatus, errorThrown) {
-        if (xhr.hasOwnProperty('responseText')) {
-          if (isJSON(xhr.responseText) && xhr.responseText != '') {
-            var _error = $.parseJSON(xhr.responseText);
-            if (_error.hasOwnProperty('error_message')) {
-              print('Error message: ' + _error.error_message);
-            }
+    options.error = function(xhr, textStatus, errorThrown) {
+      if (xhr.hasOwnProperty('responseText')) {
+        if (isJSON(xhr.responseText) && xhr.responseText != '') {
+          var errorData = $.parseJSON(xhr.responseText);
+          if (errorData.hasOwnProperty('error_message')) {
+            print('Error message: ' + errorData.error_message);
+          }
 
-            if (_error.hasOwnProperty('traceback')) {
-              print(_error.traceback);
-            }
+          if (errorData.hasOwnProperty('traceback')) {
+            print(errorData.traceback);
           }
         }
-        else {
-          print('Error message: ' + xhr.responseText);
-        }
+      }
+      else {
+        print('Error message: ' + xhr.responseText);
+      }
+      
+      //~ call original error function
+      if (_.isFunction(error)) {
         error(xhr, textStatus, errorThrown);
       }
     }
     
-    if (options.hasOwnProperty('fields')) {
-      var requestURL = options.hasOwnProperty('url')? _.result(options, 'url') : _.result(model, 'url');
-      var newURL = URI(requestURL);
-      newURL.setQuery('fields', _.isArray(options.fields) ? options.fields.join(',') : options.fields);
-      options.url = newURL.toString();
-    }
-
     return Backbone.oldSync(method, model, options);
   };
 
   Backbone.Model.prototype.idAttribute = 'pk';
 
+  //~ add fields to querystring of url
+  var addFields = function(url, fields) {
+
+    //~ make sure pk is always in fields
+    if (_.indexOf(fields, 'pk') == -1) {
+      fields.push('pk');
+    }
+
+    var ret = URI(url).setQuery('fields', fields.join(',')).href();
+    debug('fields added to url, here\'s the result: ' + ret);
+    return ret;
+  }
+
   Backbone.Model.prototype.url = function() {
     var url;
     
-    url = _.isFunction(this.urlRoot) ? this.urlRoot() : this.urlRoot;
-    url = url || this.collection && (_.isFunction(this.collection.url) ? this.collection.url() : this.collection.url);
+    url = _.result(this, 'urlRoot')
+    url = url || this.collection && (_.result(this.collection, 'url'));
 
     if (url && this.hasOwnProperty('id')) {
       url = addSlash(url) + this.id;
     }
     url = addSlash(url);
-
+    
+    //~ add any fields that need to be in the url
+    if (url && this.hasOwnProperty('_fields')) {
+      url = addFields(url, this._fields)
+    }
+    
     return url || null;
   };
 
@@ -166,11 +212,11 @@
   };
 
   Backbone.Collection.prototype.url = function(models) {
-    var url = _.isFunction(this.urlRoot) ? this.urlRoot() : this.urlRoot;
+    var url = _.result(this, 'urlRoot');
     // If the collection doesn't specify an url, try to obtain one from a model in the collection
     if (!url) {
       var model = models && models.length && models[0];
-      url = model && (_.isFunction(model.urlRoot) ? model.urlRoot() : model.urlRoot);
+      url = model && (_.result(model, 'urlRoot'));
     }
     url = url && addSlash(url);
 
@@ -182,6 +228,11 @@
         return parts[parts.length - 1];
       });
       url += 'set/' + ids.join(';') + '/';
+    }
+    
+    //~ add any fields that need to be in the url
+    if (url && this.hasOwnProperty('_fields')) {
+      url = addFields(url, this._fields)
     }
 
     return url || null;
