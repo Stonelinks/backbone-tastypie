@@ -16,12 +16,12 @@
         module.exports = factory(require('backbone'), require('underscore'), require('URI'));
     } else if (typeof define === 'function' && define.amd) {
         // AMD. Register as an anonymous module.
-        define(['backbone', 'underscore', 'URI'], factory);
+        define(['backbone', 'underscore', 'URI', 'vent'], factory);
     } else {
         // Browser globals (root is window)
         root.Backbone = factory(root.Backbone, root._, root.URI);
     }
-}(this, function (Backbone, _, URI) {
+}(this, function (Backbone, _, URI, vent) {
   "use strict";
 
   //~ change this to true to enable debug messages
@@ -117,6 +117,9 @@
 
           if (errorData.hasOwnProperty('traceback')) {
             print(errorData.traceback);
+          }
+          if (vent && errorData.hasOwnProperty('error_message') && errorData.hasOwnProperty('traceback')) {
+            vent.trigger('api:error', errorData.error_message, errorData.traceback);
           }
         }
       }
