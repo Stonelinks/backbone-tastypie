@@ -9,7 +9,7 @@
  * Modifications to work with a highly customized version of Tastypie by Lucas Doyle 2013
  *
  */
-(function (root, factory) {
+(function(root, factory) {
     // https://github.com/umdjs/umd/blob/master/returnExports.js
     if (typeof exports === 'object') {
         // Node
@@ -21,16 +21,16 @@
         // Browser globals (root is window)
         root.Backbone = factory(root.Backbone, root._, root.URI);
     }
-}(this, function (Backbone, _, URI, vent) {
-  "use strict";
+}(this, function(Backbone, _, URI, vent) {
+  'use strict';
 
   //~ change this to true to enable debug messages
   var DEBUG = true;
   var debug = function(msg) {
     if (DEBUG) {
-      print(msg)
+      print(msg);
     }
-  }
+  };
 
   Backbone.Tastypie = {
     doGetOnEmptyPostResponse: true,
@@ -41,7 +41,7 @@
     },
     csrfToken: ''
   };
-  
+
   /**
    * Override Backbone's sync function, to do a GET upon receiving a HTTP CREATED.
    * This requires 2 requests to do a create, so you may want to use some other method in production.
@@ -104,7 +104,7 @@
       dfd.request = Backbone.oldSync(method, model, options);
       return dfd;
     }
-    
+
     //~ print error messages that come back from the API
     var error = options.error;
     options.error = function(xhr, textStatus, errorThrown) {
@@ -126,26 +126,26 @@
       else {
         print('Error message: ' + xhr.responseText);
       }
-      
+
       //~ call original error function
       if (_.isFunction(error)) {
         error(xhr, textStatus, errorThrown);
       }
-    }
-    
-    
+    };
+
+
     //~ HERE BEGINS A MODIFIED COPY OF THE ORIGINAL BACKBONE SYNC FUNCTION
     //~    write changes you make to it here:
     //~      - added fields support to output of url function
-    //~      - changed patch requests from http method PATCH to PUT 
-    
+    //~      - changed patch requests from http method PATCH to PUT
+
     // Map from CRUD to HTTP for our default `Backbone.sync` implementation.
     var methodMap = {
       'create': 'POST',
       'update': 'PUT',
-      'patch':  'PUT',
+      'patch': 'PUT',
       'delete': 'DELETE',
-      'read':   'GET'
+      'read': 'GET'
     };
 
     var type = methodMap[method];
@@ -160,23 +160,56 @@
     var params = {type: type, dataType: 'json'};
 
     // Ensure that we have a URL.
-    var url = options.url
+    var url = options.url;
     if (!url) {
       params.url = _.result(model, 'url') || urlError();
-      url = params.url
+      url = params.url;
     }
-    
+
+    var _uri = URI(url);
+
     //~ add fields to url
     if (options.hasOwnProperty('fields')) {
       var fields = _.isArray(options.fields) ? options.fields : [options.fields];
 
       //~ make sure pk is always in fields
-      if (_.indexOf(fields, 'pk') == -1) {
+      if (!_.contains(fields, 'pk')) {
         fields.push('pk');
       }
 
-      params.url = URI(url).setQuery('fields', fields.join(',')).href();
+      _uri.setQuery('fields', fields.join(','));
     }
+
+    // default url parameters
+    var defaults = {
+      order_by: 'pk',
+      limit: 9001,
+      format: 'json'
+    };
+    var keyAlias = {
+      order_by: 'orderBy'
+    };
+
+    _.forEach(defaults, function(value, key) {
+      if (options.hasOwnProperty(key)) {
+        _uri.setQuery(key, options[key]);
+      }
+      else if (options.hasOwnProperty(keyAlias[key])) {
+        _uri.setQuery(key, options[keyAlias[key]]);
+      }
+      else {
+        _uri.setQuery(key, value);
+      }
+    });
+
+    // support arbitrary url parameters
+    if (options.hasOwnProperty('urlParams') && _.isObject(options.urlParams)) {
+      var urlParams = options.urlParams;
+
+      _uri.setQuery(urlParams);
+    }
+
+    params.url = _uri.href();
 
     // Ensure that we have the appropriate request data.
     if (options.data == null && model && (method === 'create' || method === 'update' || method === 'patch')) {
@@ -213,7 +246,7 @@
     if (params.type === 'PATCH' && window.ActiveXObject &&
           !(window.external && window.external.msActiveXFilteringEnabled)) {
       params.xhr = function() {
-        return new ActiveXObject("Microsoft.XMLHTTP");
+        return new ActiveXObject('Microsoft.XMLHTTP');
       };
     }
 
@@ -227,15 +260,15 @@
 
   Backbone.Model.prototype.url = function() {
     var url;
-    
-    url = _.result(this, 'urlRoot')
+
+    url = _.result(this, 'urlRoot');
     url = url || this.collection && (_.result(this.collection, 'url'));
 
     if (url && this.hasOwnProperty('id')) {
       url = addSlash(url) + this.id;
     }
     url = addSlash(url);
-    
+
     return url || null;
   };
 
@@ -276,13 +309,13 @@
       });
       url += 'set/' + ids.join(';') + '/';
     }
-    
+
     return url || null;
   };
 
   var addSlash = function(str) {
     return str + ((str.length > 0 && str.charAt(str.length - 1) === '/') ? '' : '/');
   };
-  
+
   return Backbone;
 }));
