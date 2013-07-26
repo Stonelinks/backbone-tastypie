@@ -18,7 +18,7 @@ module.exports = function(grunt) {
   grunt.initConfig({
     exec: {
       fixjsstyle: {
-        command: 'fixjsstyle -r backbone_tastypie/static/js/backbone_tastypie.js',
+        command: 'fixjsstyle backbone_tastypie/static/js/backbone_tastypie.js',
         stdout: true
       },
       copy: {

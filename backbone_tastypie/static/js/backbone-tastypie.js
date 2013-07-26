@@ -182,21 +182,20 @@
 
     // default url parameters
     var defaults = {
-      order_by: 'pk',
       limit: 9001,
       format: 'json'
     };
-    var keyAlias = {
-      order_by: 'orderBy'
-    };
+    // var keyAlias = {
+      // order_by: 'orderBy'
+    // };
 
     _.forEach(defaults, function(value, key) {
       if (options.hasOwnProperty(key)) {
         _uri.setQuery(key, options[key]);
       }
-      else if (options.hasOwnProperty(keyAlias[key])) {
-        _uri.setQuery(key, options[keyAlias[key]]);
-      }
+      // else if (options.hasOwnProperty(keyAlias[key])) {
+        // _uri.setQuery(key, options[keyAlias[key]]);
+      // }
       else {
         _uri.setQuery(key, value);
       }
