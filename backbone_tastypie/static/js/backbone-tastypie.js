@@ -182,7 +182,7 @@
 
     // default url parameters
     var defaults = {
-      limit: 9001,
+      limit: 0,
       format: 'json'
     };
     // var keyAlias = {
