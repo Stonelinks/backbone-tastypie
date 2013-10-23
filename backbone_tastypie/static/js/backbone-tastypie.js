@@ -108,31 +108,14 @@
     //~ print error messages that come back from the API
     var error = options.error;
     options.error = function(xhr, textStatus, errorThrown) {
-      if (xhr.hasOwnProperty('responseText')) {
-        if (isJSON(xhr.responseText) && xhr.responseText != '') {
-          var errorData = $.parseJSON(xhr.responseText);
-          if (errorData.hasOwnProperty('error_message')) {
-            print('Error message: ' + errorData.error_message);
-          }
-
-          if (errorData.hasOwnProperty('traceback')) {
-            print(errorData.traceback);
-          }
-          if (vent && errorData.hasOwnProperty('error_message') && errorData.hasOwnProperty('traceback')) {
-            vent.trigger('api:error', errorData.error_message, errorData.traceback);
-          }
-        }
-      }
-      else {
-        print('Error message: ' + xhr.responseText);
-      }
+      
+      vent.trigger('api:error', xhr, this, textStatus, errorThrown);
 
       //~ call original error function
       if (_.isFunction(error)) {
         error(xhr, textStatus, errorThrown);
       }
     };
-
 
     //~ HERE BEGINS A MODIFIED COPY OF THE ORIGINAL BACKBONE SYNC FUNCTION
     //~    write changes you make to it here:
